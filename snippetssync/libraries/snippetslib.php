@@ -21,6 +21,7 @@ class Snippetslib extends Ab_LibBase {
 	private $tmpl_basepath = '';
 	
 	private $enable_auto_delete = FALSE;
+	private $file_extension = '.html';
 
 	public function __construct() {
 		
@@ -34,6 +35,18 @@ class Snippetslib extends Ab_LibBase {
 		// Set auto delete of orphaned files to TRUE is set specifically via the site $config
 		if ( $this->EE->config->slash_item('snippetssync_enable_auto_delete') ) {
 			$this->enable_auto_delete = TRUE;
+		}
+
+		if ( $this->EE->config->slash_item('snippetssync_file_extension') ) {
+
+			$this->file_extension = $this->EE->config->slash_item('snippetssync_file_extension');
+			if ( !preg_match( "/^\./" , $this->file_extension ) )
+			{
+				// force the dot in case it was missed by the user ('html' > '.html')
+				$this->file_extension = '.'.$this->file_extension;
+			}
+		} else {
+			$this->file_extension = '';
 		}
 	}
 
@@ -230,6 +243,47 @@ class Snippetslib extends Ab_LibBase {
 				$this->last_sync_log['snippets'][] = $snippet_name;
 			}
 			
+			/*
+				Create Or Update files for Snippets & Global Vars created via the CP.
+				@FIXME: Global Vars work, but it seems Snippets are not send via the $_POST array so there is no way of accessing which snippet has been created and its content.
+			*/
+			if (
+				( isset($_GET["M"]) && ($_GET["M"] == "snippets" || $_GET["M"] == "snippets_edit") && ( isset($_GET["update"]) && $_GET["update"]) )
+				|| ( isset($_GET["M"]) && ($_GET["M"] == "global_variables_create" || $_GET["M"] == "global_variables_update") && ( isset($_POST["template"]) && $_POST["template"] == "Update") )
+			)
+			{
+				// print "CREATING OR UPDATING FILE \r\n\n";
+				// get var or snippet name & contents.
+				if ( isset($_POST["variable_name"]) )
+				{
+					// print "\r\nWe've got a global var:\r\n";
+					$name = $_POST["variable_name"];
+					$contents = $_POST["variable_data"];
+					$filepath = $this->gv_path.$name.$this->file_extension;
+				}
+				// else if ( ($_GET["M"] == "snippets" || $_GET["M"] == "snippets_edit") && ( isset($_GET["update"]) && $_GET["update"]) )
+				// {
+				// 	// print "\r\nWe've got a snippet:\r\n";
+				// 	// print_r( $_REQUEST );
+				// 
+				// 	$name = $_POST["snippet_name"];
+				// 	$contents = $_POST["snippet_contents"];
+				// 	$filepath = $this->sn_path.$name.$this->file_extension;
+				// }
+				
+				// print "\r\n$name\r\n";
+				// print "$contents\r\n";
+				// print "$filepath\r\n";
+
+				
+				if ( isset($name) && isset($contents) )
+				{
+					// print "Let's write this file $filepath";
+					// write or update file
+					file_put_contents( $filepath , $contents );
+				}
+			}
+				
 			return TRUE;
 
 		}
